@@ -1,0 +1,96 @@
+Resources:
+  MyVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16  # Edit cird block  
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+      - Key: Name
+        Value: MyVPC   # This is the VPC name
+
+  MyPublicSubnet:
+    Type: AWS::EC2::Subnet   
+    Properties:
+      VpcId: !Ref MyVPC
+      AvailabilityZone: us-east-1a # Edit availability zone 
+      CidrBlock:  10.0.1.0/24     #Edit subnet block 
+      MapPublicIpOnLaunch: 'true'      
+      Tags:
+      - Key: Name
+        Value: MyPublicSubnet  # This is the subnet name
+
+  MyInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: MyInternetGateway #This is the gateway name 
+
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+         Ref: MyVPC
+      InternetGatewayId:
+         Ref: MyInternetGateway
+  
+  MyRouteTable:
+    Type: AWS::EC2::RouteTable    
+    Properties:
+      VpcId: !Ref MyVPC
+      Tags:
+        - Key: Name
+          Value: MyRouteTable #This is the route table name
+  
+  RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyPublicSubnet      
+      RouteTableId: !Ref MyRouteTable
+
+  Route:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref MyRouteTable
+      DestinationCidrBlock: 0.0.0.0/0     #This route allows resources to go internet 
+      GatewayId: !Ref MyInternetGateway   #This is the Internet gateway that created previous 
+    
+  MySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http, https and ssh
+      VpcId: !Ref MyVPC
+      SecurityGroupIngress:
+
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp:  0.0.0.0/0
+        
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp:  0.0.0.0/0
+        
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp:  0.0.0.0/0
+
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro              #Give the intance type of your requirement
+      ImageId: ami-005f9685cb30f234b      #Give the ami of your requirement(n.virgia,amazon linux)
+      
+      KeyName: mykeypair                  #Key pair name that we created manually
+      SubnetId: !Ref MyPublicSubnet       #Give the Subnet 
+      SecurityGroupIds:
+        - !Ref MySecurityGroup
+        
+      Tags:
+        - Key: Name
+          Value: Myec2
+
+    
