@@ -1,0 +1,231 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: VPC-Peering
+
+Resources:
+
+############################### First VPC ########################################
+  MyVPC1:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 192.168.0.0/16  # Edit cird block  
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+      - Key: Name
+        Value: MyVPC1   # This is the VPC name
+
+  MyPublicSubnet1:
+    Type: AWS::EC2::Subnet   
+    Properties:
+      VpcId: !Ref MyVPC1
+      AvailabilityZone: us-east-1a # Edit availability zone 
+      CidrBlock:  192.168.1.0/16     #Edit subnet block 
+      MapPublicIpOnLaunch: 'true'      
+      Tags:
+      - Key: Name
+        Value: MyPublicSubnet1  # This is the subnet name
+
+  MyInternetGateway1:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: MyInternetGateway1 #This is the gateway name 
+
+  AttachGateway1:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+         Ref: MyVPC1
+      InternetGatewayId:
+         Ref: MyInternetGateway1
+
+  MyRouteTable1:
+    Type: AWS::EC2::RouteTable    
+    Properties:
+      VpcId: !Ref MyVPC1
+      Tags:
+        - Key: Name
+          Value: MyRouteTable1 #This is the Route1 table name
+
+  RouteTableAssociation1:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyPublicSubnet1      
+      RouteTableId: !Ref MyRouteTable1
+
+  Route1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref MyRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0     #This Route1 allows resources to go internet 
+      GatewayId: !Ref MyInternetGateway1   #This is the Internet gateway that created previous 
+  
+  Route2:
+    Type: AWS::EC2::Route
+    DependsOn: vpcPeeringConnection
+    Properties:
+      RouteTableId: !Ref MyRouteTable1
+      DestinationCidrBlock: 10.0.1.0/16                    #This is the vpc2 cird range 
+      VpcPeeringConnectionId: !Ref vpcPeeringConnection
+
+  MySecurityGroup1:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http, https and ssh
+      VpcId: !Ref MyVPC1
+      SecurityGroupIngress:
+
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp:  0.0.0.0/0
+
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp:  0.0.0.0/0
+
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp:  0.0.0.0/0
+
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+
+  MyEc2Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro              #Give the intance type of your requirement
+      ImageId: ami-005f9685cb30f234b      #Give the ami of your requirement(n.virgia,amazon linux)
+
+      KeyName: mykeypair1                  #Key pair name that we created manually
+      SubnetId: !Ref MyPublicSubnet1       #Give the Subnet 
+      SecurityGroupIds:
+        - !Ref MySecurityGroup1
+
+      Tags:
+        - Key: Name
+          Value: MyEc2Instance1
+
+############################### Second VPC ########################################
+  MyVPC2:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.1.0/16  # Edit cird block  
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      Tags:
+      - Key: Name
+        Value: MyVPC2   # This is the VPC name
+
+  MyPublicSubnet2:
+    Type: AWS::EC2::Subnet   
+    Properties:
+      VpcId: !Ref MyVPC2
+      AvailabilityZone: us-east-1a # Edit availability zone 
+      CidrBlock:  10.0.1.0/24     #Edit subnet block 
+      MapPublicIpOnLaunch: 'true'      
+      Tags:
+      - Key: Name
+        Value: MyPublicSubnet2  # This is the subnet name
+
+  MyInternetGateway2:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value: MyInternetGateway2 #This is the gateway name 
+
+  AttachGateway2:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId:
+         Ref: MyVPC2
+      InternetGatewayId:
+         Ref: MyInternetGateway2
+
+  MyRouteTable2:
+    Type: AWS::EC2::RouteTable    
+    Properties:
+      VpcId: !Ref MyVPC2
+      Tags:
+        - Key: Name
+          Value: MyRouteTable2 #This is the Route1 table name
+
+  RouteTableAssociation2:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref MyPublicSubnet2      
+      RouteTableId: !Ref MyRouteTable2
+
+  Route3:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref MyRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0     #This Route1 allows resources to go internet 
+      GatewayId: !Ref MyInternetGateway2   #This is the Internet gateway that created previous 
+
+  Route4:
+    Type: AWS::EC2::Route
+    DependsOn: vpcPeeringConnection
+    Properties:
+      RouteTableId: !Ref MyRouteTable2
+      DestinationCidrBlock: 192.168.0.0/16     #This is the vpc1 cird range 
+      VpcPeeringConnectionId: !Ref vpcPeeringConnection
+
+  MySecurityGroup2:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow http, https and ssh
+      VpcId: !Ref MyVPC2
+      SecurityGroupIngress:
+
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp:  0.0.0.0/0
+
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp:  0.0.0.0/0
+
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp:  0.0.0.0/0
+      
+        - IpProtocol: icmp
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+  MyEc2Instance2:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: t2.micro              #Give the intance type of your requirement
+      ImageId: ami-005f9685cb30f234b      #Give the ami of your requirement(n.virgia,amazon linux)
+
+      KeyName: mykeypair2                  #Key pair name that we created manually
+      SubnetId: !Ref MyPublicSubnet2       #Give the Subnet 
+      SecurityGroupIds:
+        - !Ref MySecurityGroup2
+
+      Tags:
+        - Key: Name
+          Value: MyEc2Instance2
+
+
+  vpcPeeringConnection:
+    Type: AWS::EC2::VPCPeeringConnection
+    Properties:
+      VpcId: !Ref MyVPC1                
+      PeerVpcId: !Ref MyVPC2
+      Tags:
+      - Key: Name
+        Value: MyVPCPeering
